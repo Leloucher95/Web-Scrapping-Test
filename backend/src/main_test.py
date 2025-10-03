@@ -26,10 +26,12 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Import and include test router
+# Import and include test routers
 from src.api.test_scraping import router as test_router
+from src.api.test_scraping_stealth import router as stealth_router
 
 app.include_router(test_router, prefix="/api", tags=["Test Scraping"])
+app.include_router(stealth_router, prefix="/api", tags=["Stealth Scraping"])
 
 @app.get("/")
 async def root():
@@ -41,6 +43,9 @@ async def root():
             "health": "/api/health",
             "test_scraping": "/api/test/{topic}",
             "test_scraping_post": "/api/scrape/test",
+            "stealth_scraping": "/api/test-stealth/{topic}",
+            "stealth_scraping_post": "/api/scrape/stealth",
+            "stealth_health": "/api/health-stealth",
             "docs": "/docs"
         }
     }
