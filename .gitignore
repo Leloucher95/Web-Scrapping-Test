@@ -28,6 +28,11 @@ coverage/
 
 # Backend (Python)
 venv/
+venv_new/
+env/
+env_new/
+__pypackages__/
+
 .envrc
 __pycache__/
 *.pyc
@@ -41,6 +46,26 @@ logs/
 
 # Playwright (si utilisé)
 playwright/.cache/
+test-results/
+playwright-report/
 
-*.md
-./*.md
+# Screenshots et débug
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.pdf
+
+# Fichiers temporaires et de test
+*.test.*
+*.debug.*
+temp/
+tmp/
+
+# Bases de données locales
+*.db
+*.sqlite
+*.sqlite3
+
+# Documentation générée (mais garder les .md manuels)
+docs/generated/
