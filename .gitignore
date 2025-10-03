@@ -1,0 +1,46 @@
+# Global
+.DS_Store
+*.log
+*.tmp
+*.swp
+*.swo
+.vscode/
+.idea/
+
+# Env
+.env
+.env.*
+!.env.example
+
+# Frontend (Nuxt/Vite)
+node_modules/
+.npm/
+.pnpm-store/
+.yarn/
+.nuxt/
+.output/
+.nitro/
+dist/
+.cache/
+coverage/
+.vercel/
+.next/
+
+# Backend (Python)
+venv/
+.envrc
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.mypy_cache/
+.pytest_cache/
+.coverage*
+htmlcov/
+logs/
+
+# Playwright (si utilisé)
+playwright/.cache/
+
+*.md
+./*.md
