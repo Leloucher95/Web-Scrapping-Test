@@ -83,13 +83,16 @@ class ConnectionManager:
     async def broadcast(self, message: str):
         """Broadcast message to all connected clients"""
         if not self.active_connections:
+            logger.warning(f"📡 No WebSocket connections to broadcast to")
             return
 
+        logger.info(f"📡 Broadcasting to {len(self.active_connections)} connections: {message[:100]}...")
         disconnected = []
         for connection in self.active_connections:
             try:
                 await connection.send_text(message)
-            except:
+            except Exception as e:
+                logger.warning(f"📡 Failed to send to connection: {e}")
                 disconnected.append(connection)
 
         # Remove disconnected clients
@@ -238,7 +241,7 @@ async def api_scraping_workflow(topic: str, max_quotes: int, include_images: boo
         storage = None
         if store_in_database:
             # Check if environment variables are set
-            if not os.getenv("SUPABASE_URL") or not os.getenv("SUPABASE_SERVICE_ROLE_KEY"):
+            if not os.getenv("SUPABASE_URL") or not os.getenv("SUPABASE_SERVICE_KEY") or not os.getenv("SUPABASE_ANON_KEY"):
                 logger.warning("Supabase credentials not found. Using local storage only.")
                 await broadcast_update("error", {
                     "message": "Clés Supabase manquantes - stockage local uniquement"
@@ -272,6 +275,13 @@ async def api_scraping_workflow(topic: str, max_quotes: int, include_images: boo
                         "topic": topic
                     },
                     "progress": {"current": i + 1, "total": max_quotes}
+                })
+
+                # Update progress in real-time
+                await broadcast_update("progress", {
+                    "message": f"Citation {i + 1}/{max_quotes} extraite",
+                    "current": i + 1,
+                    "total": max_quotes
                 })
 
             # Phase 2: Download images

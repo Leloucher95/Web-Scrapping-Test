@@ -25,7 +25,8 @@ class SupabaseQuoteStorage:
     def __init__(self, supabase_url: str = None, supabase_key: str = None):
         """Initialize Supabase client."""
         self.supabase_url = supabase_url or os.getenv('SUPABASE_URL')
-        self.supabase_key = supabase_key or os.getenv('SUPABASE_ANON_KEY')
+        # Use service key for write operations, fallback to anon key
+        self.supabase_key = supabase_key or os.getenv('SUPABASE_SERVICE_KEY') or os.getenv('SUPABASE_ANON_KEY')
 
         if not self.supabase_url or not self.supabase_key:
             raise ValueError("Supabase URL and key must be provided via parameters or environment variables")

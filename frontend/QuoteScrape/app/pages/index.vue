@@ -349,13 +349,15 @@ const addLog = (message: string) => {
 }
 
 const connectWebSocket = () => {
-  const wsProtocol = location.protocol === 'https:' ? 'wss:' : 'ws:'
-  const wsUrl = `${wsProtocol}//${location.host}/ws/scraping`
+  const config = useRuntimeConfig()
+  const wsUrl = config.public.wsUrl || 'ws://localhost:8000'
+  const fullWsUrl = `${wsUrl}/scraping`
 
-  websocket = new WebSocket(wsUrl)
+  addLog(`Tentative de connexion WebSocket: ${fullWsUrl}`)
+  websocket = new WebSocket(fullWsUrl)
 
   websocket.onopen = () => {
-    addLog('Connexion WebSocket établie')
+    addLog('✅ Connexion WebSocket établie')
   }
 
   websocket.onmessage = (event) => {
@@ -368,13 +370,13 @@ const connectWebSocket = () => {
   }
 
   websocket.onclose = () => {
-    addLog('Connexion WebSocket fermée')
+    addLog('❌ Connexion WebSocket fermée')
     websocket = null
   }
 
   websocket.onerror = (error) => {
     console.error('Erreur WebSocket:', error)
-    addLog('Erreur de connexion WebSocket')
+    addLog('❌ Erreur de connexion WebSocket')
   }
 }
 
@@ -431,5 +433,8 @@ onUnmounted(() => {
 onMounted(() => {
   quotes.loadSample()
   addLog('Interface initialisée')
+
+  // Connecter WebSocket au démarrage
+  connectWebSocket()
 })
 </script>
