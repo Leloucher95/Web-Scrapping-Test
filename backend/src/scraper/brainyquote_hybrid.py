@@ -1,3 +1,4 @@
+# src/scraper/brainyquote_hybrid.py
 from playwright.async_api import async_playwright, Browser, Page
 from typing import List, Dict, Optional
 import asyncio
@@ -29,7 +30,31 @@ class HybridBrainyQuoteScraper:
                 '--no-sandbox',
                 '--disable-setuid-sandbox',
                 '--disable-blink-features=AutomationControlled',
-                '--disable-features=VizDisplayCompositor'
+                '--disable-features=VizDisplayCompositor',
+                '--disable-extensions',
+                '--disable-plugins',
+                '--disable-dev-shm-usage',
+                '--disable-background-timer-throttling',
+                '--disable-backgrounding-occluded-windows',
+                '--disable-renderer-backgrounding',
+                '--disable-field-trial-config',
+                '--disable-back-forward-cache',
+                '--disable-ipc-flooding-protection',
+                '--no-first-run',
+                '--no-default-browser-check',
+                '--no-zygote',
+                '--disable-background-networking',
+                '--disable-default-apps',
+                '--disable-sync',
+                '--disable-translate',
+                '--hide-scrollbars',
+                '--metrics-recording-only',
+                '--mute-audio',
+                '--safebrowsing-disable-auto-update',
+                '--ignore-certificate-errors',
+                '--ignore-ssl-errors',
+                '--ignore-certificate-errors-spki-list',
+                '--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
             ]
         )
         return self
@@ -48,38 +73,132 @@ class HybridBrainyQuoteScraper:
         if not self.browser:
             raise RuntimeError("Browser not initialized. Use async context manager.")
 
-        # Configuration simple et discrète (comme le scraper qui fonctionnait)
+        # Configuration optimisée pour être totalement indétectable
         context = await self.browser.new_context(
-            user_agent='Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-            viewport={'width': 1366, 'height': 768},
+            user_agent='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            viewport={'width': 1920, 'height': 1080},
+            device_scale_factor=1,
+            is_mobile=False,
+            has_touch=False,
             extra_http_headers={
-                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-                'Accept-Language': 'en-US,en;q=0.5',
+                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
+                'Accept-Language': 'en-US,en;q=0.9',
                 'Accept-Encoding': 'gzip, deflate, br',
+                'Cache-Control': 'max-age=0',
                 'DNT': '1',
                 'Connection': 'keep-alive',
                 'Upgrade-Insecure-Requests': '1',
+                'Sec-Fetch-Dest': 'document',
+                'Sec-Fetch-Mode': 'navigate',
+                'Sec-Fetch-Site': 'none',
+                'Sec-Fetch-User': '?1',
+                'sec-ch-ua': '"Not_A Brand";v="8", "Chromium";v="120", "Google Chrome";v="120"',
+                'sec-ch-ua-mobile': '?0',
+                'sec-ch-ua-platform': '"Windows"'
             }
         )
 
         page = await context.new_page()
 
-        # Scripts anti-détection basiques (comme l'original)
+        # Scripts anti-détection avancés pour être totalement indétectable
         await page.add_init_script("""
+            // Supprimer toutes les traces d'automation
             Object.defineProperty(navigator, 'webdriver', {
                 get: () => undefined,
             });
 
+            // Mock des plugins de manière réaliste
             Object.defineProperty(navigator, 'plugins', {
-                get: () => [1, 2, 3, 4, 5],
+                get: () => [
+                    {
+                        0: {type: "application/x-google-chrome-pdf", suffixes: "pdf", description: "Portable Document Format", enabledPlugin: Plugin},
+                        description: "Portable Document Format",
+                        filename: "internal-pdf-viewer",
+                        length: 1,
+                        name: "Chrome PDF Plugin"
+                    },
+                    {
+                        0: {type: "application/pdf", suffixes: "pdf", description: "Portable Document Format", enabledPlugin: Plugin},
+                        description: "Portable Document Format",
+                        filename: "mhjfbmdgcfjbbpaeojofohoefgiehjai",
+                        length: 1,
+                        name: "Chrome PDF Viewer"
+                    }
+                ],
             });
 
+            // Languages plus réalistes
             Object.defineProperty(navigator, 'languages', {
                 get: () => ['en-US', 'en'],
             });
 
+            // Chrome object complet
             window.chrome = {
                 runtime: {},
+                loadTimes: function() {
+                    return {
+                        commitLoadTime: Date.now() / 1000 - Math.random(),
+                        connectionInfo: 'http/1.1',
+                        finishDocumentLoadTime: Date.now() / 1000 - Math.random(),
+                        finishLoadTime: Date.now() / 1000 - Math.random(),
+                        firstPaintAfterLoadTime: 0,
+                        firstPaintTime: Date.now() / 1000 - Math.random(),
+                        navigationType: 'Other',
+                        npnNegotiatedProtocol: 'unknown',
+                        requestTime: Date.now() / 1000 - Math.random(),
+                        startLoadTime: Date.now() / 1000 - Math.random(),
+                        wasAlternateProtocolAvailable: false,
+                        wasFetchedViaSpdy: false,
+                        wasNpnNegotiated: false
+                    };
+                },
+                csi: function() {
+                    return {
+                        onloadT: Date.now(),
+                        pageT: Date.now() - Math.random() * 1000,
+                        startE: Date.now() - Math.random() * 1000,
+                        tran: 15
+                    };
+                }
+            };
+
+            // WebGL fingerprint protection
+            const getParameter = WebGLRenderingContext.getParameter;
+            WebGLRenderingContext.prototype.getParameter = function(parameter) {
+                if (parameter === 37445) {
+                    return 'Intel Inc.';
+                }
+                if (parameter === 37446) {
+                    return 'Intel(R) Iris(TM) Graphics 6100';
+                }
+                return getParameter(parameter);
+            };
+
+            // Permission queries
+            const originalQuery = window.navigator.permissions.query;
+            window.navigator.permissions.query = (parameters) => (
+                parameters.name === 'notifications' ?
+                    Promise.resolve({ state: Notification.permission }) :
+                    originalQuery(parameters)
+            );
+
+            // Connection downlink simulation
+            Object.defineProperty(navigator, 'connection', {
+                get: () => ({
+                    downlink: 10,
+                    effectiveType: '4g',
+                    rtt: 50,
+                    saveData: false
+                }),
+            });
+
+            // Canvas fingerprint protection
+            const originalToDataURL = HTMLCanvasElement.prototype.toDataURL;
+            HTMLCanvasElement.prototype.toDataURL = function(...args) {
+                const context = this.getContext('2d');
+                context.fillStyle = 'rgba(255, 255, 255, 0.01)';
+                context.fillRect(0, 0, 1, 1);
+                return originalToDataURL.apply(this, args);
             };
         """)
 
@@ -331,3 +450,34 @@ class HybridBrainyQuoteScraper:
         async with self as scraper:
             quotes = await scraper.scrape_topic(topic, max_pages=1, max_quotes=max_quotes)
             return quotes
+
+    # Ajout des méthodes manquantes pour compatibilité avec main.py
+    async def close(self):
+        """Fermer le scraper"""
+        if self.browser:
+            await self.browser.close()
+        await self.playwright.stop()
+
+    async def scrape_quotes(self, urls: List[str]) -> List[Dict]:
+        """Scraper une liste d'URLs (méthode de compatibilité)"""
+        # Convertir les URLs en topics et scraper
+        results = []
+        topics = ["motivational", "love", "success"]  # Topics par défaut
+
+        for topic in topics:
+            try:
+                quotes = await self.scrape_topic(topic, max_quotes=3)
+                results.extend(quotes)
+                await asyncio.sleep(2)
+            except Exception as e:
+                logger.error(f"Failed to scrape topic {topic}: {e}")
+                continue
+
+        return results
+
+    async def scrape_single_quote(self, url: str) -> Optional[Dict]:
+        """Scraper une seule quote (méthode de compatibilité)"""
+        # Extraire le topic de l'URL ou utiliser un topic par défaut
+        topic = "motivational"
+        quotes = await self.scrape_topic(topic, max_quotes=1)
+        return quotes[0] if quotes else None
