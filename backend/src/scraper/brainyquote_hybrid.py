@@ -270,6 +270,27 @@ class HybridBrainyQuoteScraper:
         logger.info(f"🏁 Hybrid scraping completed. Total quotes: {len(quotes)}")
         return quotes
 
+    async def download_images(self, quotes: List[Dict]) -> List[Dict]:
+        """Télécharge les images pour chaque citation et retourne la liste des résultats."""
+        results: List[Dict] = []
+        for quote in quotes:
+            image_url = quote.get("image_url")
+            identifier = f"{quote.get('author', 'unknown')}_{quote.get('index', 0)}"
+            try:
+                if image_url:
+                    res = await self._download_image_simple(image_url, identifier)
+                    if res:
+                        res["success"] = True
+                        results.append(res)
+                    else:
+                        results.append({"success": False, "url": image_url})
+                else:
+                    results.append({"success": False, "url": None})
+            except Exception as e:
+                logger.error(f"Error downloading image for {identifier}: {e}")
+                results.append({"success": False, "url": image_url})
+        return results
+
     async def _extract_quotes_enhanced(self, page: Page, quotes_selector: str = '.bqQt') -> List[Dict]:
         """Extraction améliorée mais basée sur le code qui fonctionne"""
         quotes = []
@@ -456,7 +477,8 @@ class HybridBrainyQuoteScraper:
         """Fermer le scraper"""
         if self.browser:
             await self.browser.close()
-        await self.playwright.stop()
+        if hasattr(self, 'playwright') and self.playwright:
+            await self.playwright.stop()
 
     async def scrape_quotes(self, urls: List[str]) -> List[Dict]:
         """Scraper une liste d'URLs (méthode de compatibilité)"""

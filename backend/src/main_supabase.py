@@ -1,5 +1,6 @@
 """
 Enhanced main application with Supabase integration for storing quotes and images.
+Now with FastAPI API endpoints!
 """
 
 import asyncio
@@ -9,6 +10,10 @@ import os
 from pathlib import Path
 from datetime import datetime
 import logging
+from typing import Dict, Optional, List
+from fastapi import FastAPI, HTTPException, BackgroundTasks, WebSocket, WebSocketDisconnect
+from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
 from dotenv import load_dotenv
 
 from scraper.brainyquote_hybrid import HybridBrainyQuoteScraper
@@ -28,6 +33,307 @@ logging.basicConfig(
 )
 
 logger = logging.getLogger(__name__)
+
+# FastAPI app
+app = FastAPI(
+    title="QuoteScrape API",
+    description="Enhanced scraping API with Supabase integration",
+    version="1.0.0"
+)
+
+# CORS
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:3000"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Global state for API
+scraping_state = {
+    "status": "idle",
+    "current_topic": "",
+    "progress": {"current": 0, "total": 0},
+    "stats": {"extracted": 0, "images": 0, "errors": 0, "elapsed": 0},
+    "start_time": None,
+}
+
+# WebSocket connection manager
+class ConnectionManager:
+    def __init__(self):
+        self.active_connections: List[WebSocket] = []
+
+    async def connect(self, websocket: WebSocket):
+        await websocket.accept()
+        self.active_connections.append(websocket)
+        logger.info(f"📡 WebSocket connected. Total connections: {len(self.active_connections)}")
+
+    def disconnect(self, websocket: WebSocket):
+        if websocket in self.active_connections:
+            self.active_connections.remove(websocket)
+        logger.info(f"📡 WebSocket disconnected. Total connections: {len(self.active_connections)}")
+
+    async def send_personal_message(self, message: str, websocket: WebSocket):
+        try:
+            await websocket.send_text(message)
+        except:
+            self.disconnect(websocket)
+
+    async def broadcast(self, message: str):
+        """Broadcast message to all connected clients"""
+        if not self.active_connections:
+            return
+
+        disconnected = []
+        for connection in self.active_connections:
+            try:
+                await connection.send_text(message)
+            except:
+                disconnected.append(connection)
+
+        # Remove disconnected clients
+        for connection in disconnected:
+            self.disconnect(connection)
+
+manager = ConnectionManager()
+
+# Pydantic models
+class ScrapeRequest(BaseModel):
+    topic: str
+    max_quotes: int = 10
+    include_images: bool = True
+    store_in_database: bool = True
+
+class ScrapeResponse(BaseModel):
+    success: bool
+    message: str
+    data: Optional[Dict] = None
+
+# FastAPI Routes
+@app.get("/health")
+async def health_check():
+    """Health check endpoint"""
+    return {"status": "healthy", "timestamp": datetime.now().isoformat()}
+
+@app.get("/api/scrape/status")
+async def get_scraping_status():
+    """Get current scraping status"""
+    elapsed = 0
+    if scraping_state["start_time"]:
+        elapsed = int(time.time() - scraping_state["start_time"])
+
+    return {
+        "status": scraping_state["status"],
+        "current_topic": scraping_state["current_topic"],
+        "progress": scraping_state["progress"],
+        "stats": scraping_state["stats"],
+        "elapsed": elapsed
+    }
+
+@app.post("/api/scrape/start", response_model=ScrapeResponse)
+async def start_scraping(request: ScrapeRequest, background_tasks: BackgroundTasks):
+    """Start scraping quotes"""
+
+    if scraping_state["status"] in ["starting", "running"]:
+        raise HTTPException(status_code=400, detail="Scraping already in progress")
+
+    try:
+        # Initialize scraping state
+        scraping_state.update({
+            "status": "starting",
+            "current_topic": request.topic,
+            "progress": {"current": 0, "total": request.max_quotes},
+            "stats": {"extracted": 0, "images": 0, "errors": 0, "elapsed": 0},
+            "start_time": time.time()
+        })
+
+        # Start background task using existing workflow
+        background_tasks.add_task(
+            api_scraping_workflow,
+            request.topic,
+            request.max_quotes,
+            request.include_images,
+            request.store_in_database
+        )
+
+        return ScrapeResponse(
+            success=True,
+            message=f"Scraping started for topic: {request.topic}",
+            data={"topic": request.topic, "max_quotes": request.max_quotes}
+        )
+
+    except Exception as e:
+        logger.error(f"Error starting scraping: {e}")
+        scraping_state["status"] = "error"
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/scrape/stop", response_model=ScrapeResponse)
+async def stop_scraping():
+    """Stop current scraping"""
+
+    if scraping_state["status"] not in ["starting", "running"]:
+        raise HTTPException(status_code=400, detail="No scraping in progress")
+
+    scraping_state["status"] = "stopped"
+
+    return ScrapeResponse(
+        success=True,
+        message="Scraping stopped successfully"
+    )
+
+@app.websocket("/ws/scraping")
+async def websocket_endpoint(websocket: WebSocket):
+    """WebSocket endpoint for real-time scraping updates"""
+    await manager.connect(websocket)
+    try:
+        # Send initial status
+        initial_status = {
+            "type": "status",
+            "status": scraping_state["status"],
+            "progress": scraping_state["progress"],
+            "stats": scraping_state["stats"],
+            "elapsed": int(time.time() - scraping_state["start_time"]) if scraping_state["start_time"] else 0
+        }
+        await manager.send_personal_message(json.dumps(initial_status), websocket)
+
+        # Keep connection alive
+        while True:
+            try:
+                # Wait for ping/pong or other messages
+                data = await websocket.receive_text()
+                # Echo back or handle specific commands
+                if data == "ping":
+                    await manager.send_personal_message("pong", websocket)
+            except WebSocketDisconnect:
+                break
+
+    except WebSocketDisconnect:
+        pass
+    finally:
+        manager.disconnect(websocket)
+
+async def broadcast_update(update_type: str, data: Dict):
+    """Helper function to broadcast updates to all connected clients"""
+    message = {
+        "type": update_type,
+        "timestamp": datetime.now().isoformat(),
+        **data
+    }
+    await manager.broadcast(json.dumps(message))
+
+async def api_scraping_workflow(topic: str, max_quotes: int, include_images: bool, store_in_database: bool):
+    """API version of the scraping workflow with WebSocket updates"""
+    try:
+        scraping_state["status"] = "running"
+        logger.info(f"🚀 API: Starting scraping workflow for topic: {topic}")
+
+        # Broadcast start
+        await broadcast_update("status", {
+            "status": "running",
+            "message": f"Démarrage du scraping pour '{topic}'"
+        })
+
+        # Initialize storage component
+        storage = None
+        if store_in_database:
+            # Check if environment variables are set
+            if not os.getenv("SUPABASE_URL") or not os.getenv("SUPABASE_SERVICE_ROLE_KEY"):
+                logger.warning("Supabase credentials not found. Using local storage only.")
+                await broadcast_update("error", {
+                    "message": "Clés Supabase manquantes - stockage local uniquement"
+                })
+                store_in_database = False
+            else:
+                storage = SupabaseQuoteStorage()
+
+        # Use context manager for scraper
+        async with HybridBrainyQuoteScraper() as scraper:
+            # Phase 1: Scrape quotes
+            await broadcast_update("progress", {
+                "message": "Phase 1: Extraction des citations...",
+                "current": 0,
+                "total": max_quotes
+            })
+
+            quotes = await scraper.scrape_topic(topic, max_quotes=max_quotes)
+
+            logger.info(f"Scraped {len(quotes)} quotes successfully")
+            scraping_state["stats"]["extracted"] = len(quotes)
+            scraping_state["progress"]["current"] = len(quotes)
+
+            # Broadcast each quote as it's extracted
+            for i, quote in enumerate(quotes):
+                await broadcast_update("quote_extracted", {
+                    "quote": {
+                        "id": quote.get('index'),
+                        "text": quote.get('text'),
+                        "author": quote.get('author'),
+                        "topic": topic
+                    },
+                    "progress": {"current": i + 1, "total": max_quotes}
+                })
+
+            # Phase 2: Download images
+            if include_images:
+                await broadcast_update("progress", {
+                    "message": "Phase 2: Téléchargement des images...",
+                    "current": len(quotes),
+                    "total": max_quotes
+                })
+
+                image_results = await scraper.download_images(quotes)
+                successful_downloads = len([r for r in image_results if r.get("success")])
+                scraping_state["stats"]["images"] = successful_downloads
+
+                await broadcast_update("image_downloaded", {
+                    "message": f"{successful_downloads}/{len(quotes)} images téléchargées"
+                })
+
+            # Phase 3: Store in database
+            if store_in_database and storage:
+                await broadcast_update("progress", {
+                    "message": "Phase 3: Stockage en base de données...",
+                    "current": len(quotes),
+                    "total": max_quotes
+                })
+
+                try:
+                    stored_quotes = await storage.store_quotes_batch(quotes)
+                    logger.info(f"Stored {len(stored_quotes)} quotes in database")
+
+                    await broadcast_update("database_stored", {
+                        "message": f"{len(stored_quotes)} citations stockées en base"
+                    })
+
+                except Exception as e:
+                    logger.error(f"Error storing in database: {e}")
+                    scraping_state["stats"]["errors"] += 1
+                    await broadcast_update("error", {
+                        "message": f"Erreur stockage DB: {str(e)}"
+                    })
+
+            # Final state
+            scraping_state["status"] = "completed"
+            scraping_state["stats"]["elapsed"] = int(time.time() - scraping_state["start_time"])
+
+            await broadcast_update("completed", {
+                "message": "Scraping terminé avec succès!",
+                "stats": scraping_state["stats"],
+                "progress": {"current": len(quotes), "total": max_quotes}
+            })
+
+            logger.info(f"Scraping completed successfully. Stats: {scraping_state['stats']}")
+
+    except Exception as e:
+        logger.error(f"API scraping workflow error: {e}")
+        scraping_state["status"] = "error"
+        scraping_state["stats"]["errors"] += 1
+
+        await broadcast_update("error", {
+            "message": f"Erreur: {str(e)}",
+            "status": "error"
+        })
 
 async def test_supabase_connection():
     """Test Supabase connection and setup."""
