@@ -1,0 +1,121 @@
+{
+  "scraper_type": "hybrid",
+  "topic": "motivational",
+  "total_quotes": 8,
+  "valid_quotes": 8,
+  "quotes_with_images": 8,
+  "quotes": [
+    {
+      "text": "It does not matter how slowly you go as long as you do not stop.",
+      "author": "Confucius",
+      "link": "https://www.brainyquote.com/quotes/confucius_140908?src=t_motivational",
+      "image_url": "https://www.brainyquote.com/photos_tr/en/c/confucius/140908/confucius1.jpg",
+      "image_data": {
+        "filename": "quote_Confucius_0_ed54b5f9.jpg",
+        "local_path": "cached_images/quote_Confucius_0_ed54b5f9.jpg",
+        "content_type": "image/jpeg",
+        "size": 55919,
+        "original_url": "https://www.brainyquote.com/photos_tr/en/c/confucius/140908/confucius1.jpg"
+      },
+      "index": 0
+    },
+    {
+      "text": "Don't watch the clock; do what it does. Keep going.",
+      "author": "Sam Levenson",
+      "link": "https://www.brainyquote.com/quotes/sam_levenson_166055?src=t_motivational",
+      "image_url": "https://www.brainyquote.com/photos_tr/en/s/samlevenson/166055/samlevenson1.jpg",
+      "image_data": {
+        "filename": "quote_Sam_Levenson_12_6a6c3210.jpg",
+        "local_path": "cached_images/quote_Sam_Levenson_12_6a6c3210.jpg",
+        "content_type": "image/jpeg",
+        "size": 36058,
+        "original_url": "https://www.brainyquote.com/photos_tr/en/s/samlevenson/166055/samlevenson1.jpg"
+      },
+      "index": 12
+    },
+    {
+      "text": "Set your goals high, and don't stop till you get there.",
+      "author": "Bo Jackson",
+      "link": "https://www.brainyquote.com/quotes/bo_jackson_129219?src=t_motivational",
+      "image_url": "https://www.brainyquote.com/photos_tr/en/b/bojackson/129219/bojackson1.jpg",
+      "image_data": {
+        "filename": "quote_Bo_Jackson_24_8d5b41d4.jpg",
+        "local_path": "cached_images/quote_Bo_Jackson_24_8d5b41d4.jpg",
+        "content_type": "image/jpeg",
+        "size": 29741,
+        "original_url": "https://www.brainyquote.com/photos_tr/en/b/bojackson/129219/bojackson1.jpg"
+      },
+      "index": 24
+    },
+    {
+      "text": "Life is 10% what happens to you and 90% how you react to it.",
+      "author": "Charles R. Swindoll",
+      "link": "https://www.brainyquote.com/quotes/charles_r_swindoll_388332?src=t_motivational",
+      "image_url": "https://www.brainyquote.com/photos_tr/en/c/charlesrswindoll/388332/charlesrswindoll1.jpg",
+      "image_data": {
+        "filename": "quote_Charles_R__Swindoll_35_d0965d39.jpg",
+        "local_path": "cached_images/quote_Charles_R__Swindoll_35_d0965d39.jpg",
+        "content_type": "image/jpeg",
+        "size": 23804,
+        "original_url": "https://www.brainyquote.com/photos_tr/en/c/charlesrswindoll/388332/charlesrswindoll1.jpg"
+      },
+      "index": 35
+    },
+    {
+      "text": "Consult not your fears but your hopes and your dreams. Think not about your frustrations, but about your unfulfilled potential. Concern yourself not with what you tried and failed in, but with what it is still possible for you to do.",
+      "author": "Pope John Xxiii",
+      "link": "https://www.brainyquote.com/quotes/pope_john_xxiii_109443?src=t_motivational",
+      "image_url": "https://www.brainyquote.com/photos_tr/en/p/popejohnxxiii/109443/popejohnxxiii1.jpg",
+      "image_data": {
+        "filename": "quote_Pope_John_Xxiii_39_168d58df.jpg",
+        "local_path": "cached_images/quote_Pope_John_Xxiii_39_168d58df.jpg",
+        "content_type": "image/jpeg",
+        "size": 25011,
+        "original_url": "https://www.brainyquote.com/photos_tr/en/p/popejohnxxiii/109443/popejohnxxiii1.jpg"
+      },
+      "index": 39
+    },
+    {
+      "text": "Act as if what you do makes a difference. It does.",
+      "author": "William James",
+      "link": "https://www.brainyquote.com/quotes/william_james_105643?src=t_motivational",
+      "image_url": "https://www.brainyquote.com/photos_tr/en/w/williamjames/105643/williamjames1.jpg",
+      "image_data": {
+        "filename": "quote_William_James_47_b9a27107.jpg",
+        "local_path": "cached_images/quote_William_James_47_b9a27107.jpg",
+        "content_type": "image/jpeg",
+        "size": 32717,
+        "original_url": "https://www.brainyquote.com/photos_tr/en/w/williamjames/105643/williamjames1.jpg"
+      },
+      "index": 47
+    },
+    {
+      "text": "Setting goals is the first step in turning the invisible into the visible.",
+      "author": "Tony Robbins",
+      "link": "https://www.brainyquote.com/quotes/tony_robbins_147791?src=t_motivational",
+      "image_url": "https://www.brainyquote.com/photos_tr/en/t/tonyrobbins/147791/tonyrobbins1.jpg",
+      "image_data": {
+        "filename": "quote_Tony_Robbins_51_3090a0a1.jpg",
+        "local_path": "cached_images/quote_Tony_Robbins_51_3090a0a1.jpg",
+        "content_type": "image/jpeg",
+        "size": 25898,
+        "original_url": "https://www.brainyquote.com/photos_tr/en/t/tonyrobbins/147791/tonyrobbins1.jpg"
+      },
+      "index": 51
+    },
+    {
+      "text": "Perseverance is failing 19 times and succeeding the 20th.",
+      "author": "Julie Andrews",
+      "link": "https://www.brainyquote.com/quotes/julie_andrews_382494?src=t_motivational",
+      "image_url": "https://www.brainyquote.com/photos_tr/en/j/julieandrews/382494/julieandrews1.jpg",
+      "image_data": {
+        "filename": "quote_Julie_Andrews_59_4906e105.jpg",
+        "local_path": "cached_images/quote_Julie_Andrews_59_4906e105.jpg",
+        "content_type": "image/jpeg",
+        "size": 22872,
+        "original_url": "https://www.brainyquote.com/photos_tr/en/j/julieandrews/382494/julieandrews1.jpg"
+      },
+      "index": 59
+    }
+  ]
+}
