@@ -20,12 +20,12 @@ async def test_single_topic():
 
     try:
         async with BrainyQuoteScraper() as scraper:
-            quotes = await scraper.scrape_topic(topic, max_quotes=5)
+            quotes = await scraper.scrape_topic(topic, max_pages=1)
 
             print(f"\n📊 Found {len(quotes)} quotes for '{topic}':")
             print("-" * 60)
 
-            for i, quote in enumerate(quotes, 1):
+            for i, quote in enumerate(quotes[:5], 1):  # Limiter à 5 quotes pour l'affichage
                 print(f"\n{i}. \"{quote['text']}\"")
                 print(f"   Author: {quote['author']}")
                 print(f"   Link: {quote['link']}")
@@ -38,8 +38,8 @@ async def example():
     print("🎯 Example: Scraping motivational quotes")
 
     async with BrainyQuoteScraper() as scraper:
-        quotes = await scraper.scrape_topic("motivational", max_quotes=3)
-        for quote in quotes:
+        quotes = await scraper.scrape_topic("motivational", max_pages=1)
+        for quote in quotes[:3]:  # Limiter à 3 quotes pour l'exemple
             print(f'"{quote["text"]}" - {quote["author"]}')
 
 if __name__ == "__main__":

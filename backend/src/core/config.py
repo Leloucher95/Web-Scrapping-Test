@@ -1,4 +1,4 @@
-import os
+"""import os
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -25,5 +25,34 @@ class Settings:
 
     # Logging
     LOG_LEVEL: str = os.getenv("LOG_LEVEL", "INFO")
+
+settings = Settings()
+"""
+# src/core/config.py
+import os
+from pathlib import Path
+
+class Settings:
+    """Configuration de l'application"""
+
+    # Playwright settings
+    PLAYWRIGHT_HEADLESS = True
+    PLAYWRIGHT_TIMEOUT = 30000
+
+    # Scraping settings
+    MAX_QUOTES_PER_TOPIC = 50
+    REQUEST_DELAY = 1  # secondes entre les requêtes
+
+    # Logging
+    LOG_LEVEL = "INFO"
+    LOG_FILE = "scraping.log"
+
+    # Paths
+    BASE_DIR = Path(__file__).parent.parent.parent
+    SCREENSHOTS_DIR = BASE_DIR / "screenshots"
+
+    def __init__(self):
+        # Créer les dossiers nécessaires
+        self.SCREENSHOTS_DIR.mkdir(exist_ok=True)
 
 settings = Settings()
