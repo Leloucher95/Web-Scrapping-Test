@@ -6,7 +6,7 @@ export const useScrapingStore = defineStore('scraping', () => {
   const config = useRuntimeConfig()
 
   // État
-  const status = ref<'idle' | 'starting' | 'running' | 'error' | 'done'>('idle')
+  const status = ref<'idle' | 'starting' | 'running' | 'stopped' | 'error' | 'done'>('idle')
   const currentTopic = ref<string>('')
   const startTime = ref<number>(0)
 
@@ -58,11 +58,11 @@ export const useScrapingStore = defineStore('scraping', () => {
         method: 'POST',
         baseURL: config.public.apiBaseUrl as string | undefined
       })
-      status.value = 'done'
+      status.value = 'stopped'
     } catch (error) {
       console.error('Erreur stop scraping:', error)
       // En dev, simulation
-      status.value = 'done'
+      status.value = 'stopped'
     }
   }
 

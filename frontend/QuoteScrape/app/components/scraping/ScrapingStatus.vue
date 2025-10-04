@@ -8,7 +8,7 @@
 </template>
 
 <script setup lang="ts">
-const props = defineProps<{ status: 'idle' | 'starting' | 'running' | 'error' | 'done' }>()
+const props = defineProps<{ status: 'idle' | 'starting' | 'running' | 'stopped' | 'error' | 'done' }>()
 
 const badgeClass = computed(() => {
   switch (props.status) {
@@ -18,6 +18,8 @@ const badgeClass = computed(() => {
       return 'bg-amber-500'
     case 'running':
       return 'bg-blue-500 animate-pulse'
+    case 'stopped':
+      return 'bg-orange-500'
     case 'done':
       return 'bg-green-600'
     case 'error':

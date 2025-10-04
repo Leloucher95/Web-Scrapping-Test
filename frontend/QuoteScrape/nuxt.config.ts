@@ -15,7 +15,7 @@ export default defineNuxtConfig({
       supabaseUrl: process.env.SUPABASE_URL,
       supabaseAnonKey: process.env.SUPABASE_ANON_KEY,
       apiBaseUrl: process.env.API_BASE_URL || 'http://localhost:8000',
-      wsUrl: process.env.WS_URL || 'ws://localhost:8000/ws'
+      wsUrl: process.env.WS_URL || 'ws://localhost:8000'
     }
   },
   nitro: {

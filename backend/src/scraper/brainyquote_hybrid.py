@@ -16,11 +16,12 @@ class HybridBrainyQuoteScraper:
     Scraper hybride qui combine la simplicité du scraper de base
     avec l'extraction améliorée de texte et images
     """
-    def __init__(self):
+    def __init__(self, stop_check_callback=None):
         self.browser: Optional[Browser] = None
         self.base_url = "https://www.brainyquote.com"
         self.image_cache_dir = Path("cached_images")
         self.image_cache_dir.mkdir(exist_ok=True)
+        self.stop_check_callback = stop_check_callback  # Callback to check if scraping should stop
 
     async def __aenter__(self):
         self.playwright = await async_playwright().start()
@@ -251,8 +252,8 @@ class HybridBrainyQuoteScraper:
 
             logger.info(f"✅ Using selector: {quotes_selector}")
 
-            # Extraction améliorée (nouvelle partie)
-            page_quotes = await self._extract_quotes_enhanced(page, quotes_selector)
+            # Extraction améliorée (nouvelle partie) avec limite
+            page_quotes = await self._extract_quotes_enhanced(page, quotes_selector, max_quotes=max_quotes)
             quotes.extend(page_quotes)
             logger.info(f"📊 Found {len(page_quotes)} quotes")
 
@@ -262,10 +263,6 @@ class HybridBrainyQuoteScraper:
             raise
         finally:
             await context.close()
-
-        # Limiter si nécessaire
-        if max_quotes and len(quotes) > max_quotes:
-            quotes = quotes[:max_quotes]
 
         logger.info(f"🏁 Hybrid scraping completed. Total quotes: {len(quotes)}")
         return quotes
@@ -291,14 +288,25 @@ class HybridBrainyQuoteScraper:
                 results.append({"success": False, "url": image_url})
         return results
 
-    async def _extract_quotes_enhanced(self, page: Page, quotes_selector: str = '.bqQt') -> List[Dict]:
+    async def _extract_quotes_enhanced(self, page: Page, quotes_selector: str = '.bqQt', max_quotes: Optional[int] = None) -> List[Dict]:
         """Extraction améliorée mais basée sur le code qui fonctionne"""
         quotes = []
         quote_elements = await page.query_selector_all(quotes_selector)
+        skipped_count = 0
 
-        logger.info(f"🔄 Processing {len(quote_elements)} quote elements with enhanced extraction")
+        logger.info(f"🔄 Processing {len(quote_elements)} quote elements with enhanced extraction (max: {max_quotes or 'unlimited'})")
 
         for idx, quote_element in enumerate(quote_elements):
+            # Vérifier si l'arrêt est demandé
+            if self.stop_check_callback and self.stop_check_callback():
+                logger.info(f"⛔ Stop requested during extraction, stopping at {len(quotes)} quotes")
+                break
+            
+            # Arrêter si on a atteint la limite
+            if max_quotes and len(quotes) >= max_quotes:
+                logger.info(f"✅ Reached max_quotes limit ({max_quotes}), stopping extraction")
+                break
+            
             try:
                 quote_text = ""
                 author_name = "Unknown"
@@ -380,12 +388,17 @@ class HybridBrainyQuoteScraper:
                     quotes.append(quote_data)
                     logger.debug(f"✅ Quote {idx + 1}: {quote_text[:50]}...")
                 else:
-                    logger.debug(f"❌ Skipped invalid quote {idx + 1}")
+                    skipped_count += 1
+                    logger.debug(f"❌ Skipped invalid quote {idx + 1} (text={len(quote_text) if quote_text else 0} chars, author='{author_name}')")
 
             except Exception as e:
                 logger.warning(f"⚠️  Error extracting quote {idx + 1}: {str(e)}")
+                skipped_count += 1
                 continue
 
+        if skipped_count > 0:
+            logger.info(f"⚠️  Skipped {skipped_count} invalid quotes during extraction")
+        
         return quotes
 
     def _clean_quote_text(self, text: str) -> str:
@@ -480,22 +493,27 @@ class HybridBrainyQuoteScraper:
         if hasattr(self, 'playwright') and self.playwright:
             await self.playwright.stop()
 
-    async def scrape_quotes(self, urls: List[str]) -> List[Dict]:
-        """Scraper une liste d'URLs (méthode de compatibilité)"""
-        # Convertir les URLs en topics et scraper
-        results = []
-        topics = ["motivational", "love", "success"]  # Topics par défaut
-
-        for topic in topics:
-            try:
-                quotes = await self.scrape_topic(topic, max_quotes=3)
-                results.extend(quotes)
-                await asyncio.sleep(2)
-            except Exception as e:
-                logger.error(f"Failed to scrape topic {topic}: {e}")
-                continue
-
-        return results
+    async def scrape_quotes(self, topic: str, max_quotes: int = 10) -> List[Dict]:
+        """
+        Scraper les citations pour un topic donné avec une limite.
+        
+        Args:
+            topic: Le sujet des citations (ex: "motivational", "love", etc.)
+            max_quotes: Nombre maximum de citations à extraire
+            
+        Returns:
+            Liste de dictionnaires contenant les citations
+        """
+        logger.info(f"🎯 Starting scrape_quotes for topic='{topic}', max_quotes={max_quotes}")
+        
+        try:
+            # Utiliser scrape_topic avec la limite
+            quotes = await self.scrape_topic(topic, max_pages=1, max_quotes=max_quotes)
+            logger.info(f"✅ Successfully scraped {len(quotes)} quotes")
+            return quotes
+        except Exception as e:
+            logger.error(f"❌ Failed to scrape topic {topic}: {e}")
+            raise
 
     async def scrape_single_quote(self, url: str) -> Optional[Dict]:
         """Scraper une seule quote (méthode de compatibilité)"""

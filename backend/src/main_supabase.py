@@ -59,6 +59,9 @@ scraping_state = {
     "start_time": None,
 }
 
+# Cooperative stop flag
+stop_requested = False
+
 # WebSocket connection manager
 class ConnectionManager:
     def __init__(self):
@@ -177,7 +180,8 @@ async def stop_scraping():
 
     if scraping_state["status"] not in ["starting", "running"]:
         raise HTTPException(status_code=400, detail="No scraping in progress")
-
+    global stop_requested
+    stop_requested = True
     scraping_state["status"] = "stopped"
 
     return ScrapeResponse(
@@ -228,6 +232,8 @@ async def broadcast_update(update_type: str, data: Dict):
 async def api_scraping_workflow(topic: str, max_quotes: int, include_images: bool, store_in_database: bool):
     """API version of the scraping workflow with WebSocket updates"""
     try:
+        global stop_requested
+        stop_requested = False
         scraping_state["status"] = "running"
         logger.info(f"🚀 API: Starting scraping workflow for topic: {topic}")
 
@@ -250,8 +256,11 @@ async def api_scraping_workflow(topic: str, max_quotes: int, include_images: boo
             else:
                 storage = SupabaseQuoteStorage()
 
-        # Use context manager for scraper
-        async with HybridBrainyQuoteScraper() as scraper:
+        # Use context manager for scraper with stop check callback
+        def should_stop():
+            return stop_requested
+        
+        async with HybridBrainyQuoteScraper(stop_check_callback=should_stop) as scraper:
             # Phase 1: Scrape quotes
             await broadcast_update("progress", {
                 "message": "Phase 1: Extraction des citations...",
@@ -261,31 +270,38 @@ async def api_scraping_workflow(topic: str, max_quotes: int, include_images: boo
 
             quotes = await scraper.scrape_topic(topic, max_quotes=max_quotes)
 
-            logger.info(f"Scraped {len(quotes)} quotes successfully")
+            logger.info(f"✅ Scraped {len(quotes)} quotes successfully")
             scraping_state["stats"]["extracted"] = len(quotes)
             scraping_state["progress"]["current"] = len(quotes)
+            scraping_state["progress"]["total"] = max_quotes  # S'assurer que le total est correct
 
             # Broadcast each quote as it's extracted
             for i, quote in enumerate(quotes):
+                if stop_requested:
+                    logger.info("⛔ Stop requested - aborting quote broadcast loop")
+                    break
+                    
                 await broadcast_update("quote_extracted", {
                     "quote": {
-                        "id": quote.get('index'),
+                        "id": quote.get('index', i),
                         "text": quote.get('text'),
                         "author": quote.get('author'),
-                        "topic": topic
+                        "topic": topic,
+                        "link": quote.get('link', ''),
+                        "image_url": quote.get('image_url', '')
                     },
-                    "progress": {"current": i + 1, "total": max_quotes}
+                    "progress": {"current": i + 1, "total": len(quotes)}
                 })
 
                 # Update progress in real-time
                 await broadcast_update("progress", {
-                    "message": f"Citation {i + 1}/{max_quotes} extraite",
+                    "message": f"Citation {i + 1}/{len(quotes)} extraite",
                     "current": i + 1,
-                    "total": max_quotes
+                    "total": len(quotes)
                 })
 
             # Phase 2: Download images
-            if include_images:
+            if include_images and not stop_requested:
                 await broadcast_update("progress", {
                     "message": "Phase 2: Téléchargement des images...",
                     "current": len(quotes),
@@ -301,7 +317,7 @@ async def api_scraping_workflow(topic: str, max_quotes: int, include_images: boo
                 })
 
             # Phase 3: Store in database
-            if store_in_database and storage:
+            if store_in_database and storage and not stop_requested:
                 await broadcast_update("progress", {
                     "message": "Phase 3: Stockage en base de données...",
                     "current": len(quotes),
@@ -324,16 +340,24 @@ async def api_scraping_workflow(topic: str, max_quotes: int, include_images: boo
                     })
 
             # Final state
-            scraping_state["status"] = "completed"
             scraping_state["stats"]["elapsed"] = int(time.time() - scraping_state["start_time"])
-
-            await broadcast_update("completed", {
-                "message": "Scraping terminé avec succès!",
-                "stats": scraping_state["stats"],
-                "progress": {"current": len(quotes), "total": max_quotes}
-            })
-
-            logger.info(f"Scraping completed successfully. Stats: {scraping_state['stats']}")
+            
+            if stop_requested:
+                scraping_state["status"] = "stopped"
+                await broadcast_update("stopped", {
+                    "message": "Scraping arrêté par l'utilisateur",
+                    "stats": scraping_state["stats"],
+                    "status": "stopped"
+                })
+                logger.info(f"⛔ Scraping stopped by user. Stats: {scraping_state['stats']}")
+            else:
+                scraping_state["status"] = "completed"
+                await broadcast_update("completed", {
+                    "message": "Scraping terminé avec succès!",
+                    "stats": scraping_state["stats"],
+                    "progress": {"current": scraping_state["progress"]["current"], "total": len(quotes)}
+                })
+                logger.info(f"✅ Scraping completed successfully. Stats: {scraping_state['stats']}")
 
     except Exception as e:
         logger.error(f"API scraping workflow error: {e}")

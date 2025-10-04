@@ -227,8 +227,8 @@ const recentLogs = ref<Log[]>([])
 const logCounter = ref(0)
 
 // États calculés
-const isScrapingActive = computed(() => scrapingStore.status === 'running')
-const canStop = computed(() => isScrapingActive.value && progress.value.current > 0)
+const isScrapingActive = computed(() => scrapingStore.status === 'running' || scrapingStore.status === 'starting')
+const canStop = computed(() => scrapingStore.status === 'running' || scrapingStore.status === 'starting')
 const progressPercentage = computed(() => {
   if (progress.value.total === 0) return 0
   return Math.round((progress.value.current / progress.value.total) * 100)
@@ -240,8 +240,11 @@ let websocket: WebSocket | null = null
 
 // Méthodes
 const startScraping = async () => {
+  if (scrapingStore.isActive) return
+  resetStats()
+  quotes.clearQuotes()
+
   try {
-    resetStats()
     scrapingStore.setStatus('starting')
 
     // Ajouter log
@@ -351,7 +354,7 @@ const addLog = (message: string) => {
 const connectWebSocket = () => {
   const config = useRuntimeConfig()
   const wsUrl = config.public.wsUrl || 'ws://localhost:8000'
-  const fullWsUrl = `${wsUrl}/scraping`
+  const fullWsUrl = `${wsUrl}/ws/scraping`
 
   addLog(`Tentative de connexion WebSocket: ${fullWsUrl}`)
   websocket = new WebSocket(fullWsUrl)
@@ -383,19 +386,31 @@ const connectWebSocket = () => {
 const handleWebSocketMessage = (data: any) => {
   switch (data.type) {
     case 'progress':
-      progress.value.current = data.current
-      progress.value.total = data.total
+      // Mise à jour de la progression
+      progress.value.current = data.current || 0
+      progress.value.total = data.total || progress.value.total
+      
+      // Mettre à jour aussi le log si un message est fourni
+      if (data.message) {
+        addLog(data.message)
+      }
       break
 
     case 'quote_extracted':
       stats.value.extracted++
       quotes.addQuote(data.quote)
       addLog(`Citation extraite: ${data.quote.author}`)
+      
+      // Mettre à jour la progression aussi
+      if (data.progress) {
+        progress.value.current = data.progress.current
+        progress.value.total = data.progress.total
+      }
       break
 
     case 'image_downloaded':
       stats.value.images++
-      addLog(`Image téléchargée: ${data.filename}`)
+      addLog(data.message || `Image téléchargée`)
       break
 
     case 'error':
@@ -405,15 +420,25 @@ const handleWebSocketMessage = (data: any) => {
 
     case 'completed':
       scrapingStore.setStatus('done')
-      addLog('Scraping terminé avec succès')
+      addLog(data.message || 'Scraping terminé avec succès')
+      break
+
+    case 'stopped':
+      scrapingStore.setStatus('stopped')
+      addLog('Scraping arrêté par l\'utilisateur')
       break
 
     case 'status':
       scrapingStore.setStatus(data.status)
+      if (data.message) {
+        addLog(data.message)
+      }
       break
 
     default:
-      addLog(data.message || 'Message WebSocket reçu')
+      if (data.message) {
+        addLog(data.message)
+      }
   }
 
   // Mettre à jour le temps écoulé
