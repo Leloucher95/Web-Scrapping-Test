@@ -24,23 +24,16 @@
               </select>
             </div>
 
-            <!-- Nombre max de citations -->
-            <div>
-              <label class="block text-sm font-medium mb-2" for="maxQuotes">
-                Nombre max de citations ({{ formData.maxQuotes }})
-              </label>
-              <input id="maxQuotes" v-model.number="formData.maxQuotes"
-                     type="range" min="1" max="50"
-                     class="w-full"
-                     :disabled="isScrapingActive" />
-              <div class="flex justify-between text-xs text-gray-500 mt-1">
-                <span>1</span>
-                <span>50</span>
-              </div>
-            </div>
-
             <!-- Options -->
             <div class="space-y-3">
+              <label class="flex items-center">
+                <input v-model="formData.extractAll"
+                       type="checkbox"
+                       class="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                       :disabled="isScrapingActive" />
+                <span class="ml-2 text-sm font-semibold">Extraire TOUTES les citations</span>
+              </label>
+              
               <label class="flex items-center">
                 <input v-model="formData.includeImages"
                        type="checkbox"
@@ -56,6 +49,24 @@
                        :disabled="isScrapingActive" />
                 <span class="ml-2 text-sm">Stocker en base de données</span>
               </label>
+            </div>
+
+            <!-- Nombre max de citations (désactivé si extractAll) -->
+            <div v-if="!formData.extractAll">
+              <label class="block text-sm font-medium mb-2" for="maxQuotes">
+                Nombre max de citations ({{ formData.maxQuotes }})
+              </label>
+              <input id="maxQuotes" v-model.number="formData.maxQuotes"
+                     type="range" min="1" max="200"
+                     class="w-full"
+                     :disabled="isScrapingActive" />
+              <div class="flex justify-between text-xs text-gray-500 mt-1">
+                <span>1</span>
+                <span>200</span>
+              </div>
+            </div>
+            <div v-else class="text-sm text-amber-600 bg-amber-50 p-3 rounded-lg">
+              ℹ️ Mode extraction complète activé - toutes les citations du sujet seront extraites (peut prendre plusieurs minutes)
             </div>
 
             <!-- Boutons d'action -->
@@ -178,6 +189,7 @@
 interface FormData {
   topic: string
   maxQuotes: number
+  extractAll: boolean
   includeImages: boolean
   storeInDatabase: boolean
 }
@@ -207,6 +219,7 @@ const quotes = useQuotesStore()
 const formData = ref<FormData>({
   topic: 'motivational',
   maxQuotes: 10,
+  extractAll: false,
   includeImages: true,
   storeInDatabase: true
 })
@@ -255,16 +268,19 @@ const startScraping = async () => {
       connectWebSocket()
     }
 
+    // Déterminer maxQuotes (null si extractAll est activé)
+    const maxQuotesToSend = formData.value.extractAll ? null : formData.value.maxQuotes
+    
     // Appel via le store
     await scrapingStore.start({
       topic: formData.value.topic,
-      maxQuotes: formData.value.maxQuotes,
+      maxQuotes: maxQuotesToSend,
       includeImages: formData.value.includeImages,
       storeInDatabase: formData.value.storeInDatabase
     })
 
-    progress.value.total = formData.value.maxQuotes
-    addLog(`Scraping démarré pour "${formData.value.topic}"`)
+    progress.value.total = maxQuotesToSend || 0
+    addLog(`Scraping démarré pour "${formData.value.topic}"${formData.value.extractAll ? ' (TOUTES les citations)' : ''}`)
   } catch (error) {
     console.error('Erreur démarrage scraping:', error)
     scrapingStore.setStatus('error')

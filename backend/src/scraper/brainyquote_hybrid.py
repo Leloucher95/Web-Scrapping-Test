@@ -65,14 +65,24 @@ class HybridBrainyQuoteScraper:
             await self.browser.close()
         await self.playwright.stop()
 
-    async def scrape_topic(self, topic: str, max_pages: int = 1, max_quotes: int = None) -> List[Dict]:
+    async def scrape_topic(self, topic: str, max_pages: int = 1, max_quotes: Optional[int] = None) -> List[Dict]:
         """
         Scrape quotes for a specific topic with enhanced extraction
+        
+        Args:
+            topic: Le sujet des citations (ex: "success", "love", etc.)
+            max_pages: Nombre de pages à scraper (default=1)
+            max_quotes: Nombre maximum de citations à extraire (None = toutes)
+        
+        Returns:
+            Liste de citations extraites
         """
         quotes = []
 
         if not self.browser:
             raise RuntimeError("Browser not initialized. Use async context manager.")
+        
+        logger.info(f"🎯 Scraping topic '{topic}' - max_pages={max_pages}, max_quotes={max_quotes or 'ALL'}")
 
         # Configuration optimisée pour être totalement indétectable
         context = await self.browser.new_context(
@@ -204,58 +214,90 @@ class HybridBrainyQuoteScraper:
         """)
 
         try:
-            topic_url = f"{self.base_url}/topics/{topic}-quotes"
-            logger.info(f"🎯 Starting hybrid scraping for topic: {topic}")
-            logger.info(f"📍 URL: {topic_url}")
-
-            # Navigation simple (comme l'original)
-            max_retries = 3
-            for attempt in range(max_retries):
-                try:
-                    await page.goto(topic_url, wait_until='networkidle', timeout=60000)
+            # Boucle de pagination pour extraire de plusieurs pages
+            for page_num in range(1, max_pages + 1):
+                # Vérifier si on doit arrêter (limite atteinte ou stop demandé)
+                if max_quotes and len(quotes) >= max_quotes:
+                    logger.info(f"✅ Reached max_quotes limit ({max_quotes}), stopping pagination")
                     break
-                except Exception as e:
-                    logger.warning(f"Attempt {attempt + 1} failed: {str(e)}")
-                    if attempt == max_retries - 1:
-                        raise
-                    await asyncio.sleep(5)
+                    
+                if self.stop_check_callback and self.stop_check_callback():
+                    logger.info(f"⛔ Stop requested, stopping pagination at page {page_num}")
+                    break
+                
+                # Construire l'URL avec pagination
+                if page_num == 1:
+                    topic_url = f"{self.base_url}/topics/{topic}-quotes"
+                else:
+                    topic_url = f"{self.base_url}/topics/{topic}-quotes_{page_num}"
+                
+                logger.info(f"🎯 Scraping page {page_num}/{max_pages} for topic: {topic}")
+                logger.info(f"📍 URL: {topic_url}")
 
-            # Pause standard
-            await asyncio.sleep(5)
-
-            # Vérifier les blocages
-            page_content = await page.content()
-            if "403" in page_content or "forbidden" in page_content.lower() or "blocked" in page_content.lower():
-                raise Exception("Access blocked by website protection")
-
-            # Trouver les sélecteurs (comme l'original)
-            selectors_to_try = ['.bqQt', '.grid-item', '.clearfix', '[class*="quote"]']
-            quotes_selector = None
-
-            for selector in selectors_to_try:
-                try:
-                    logger.info(f"🔍 Trying selector: {selector}")
-                    await page.wait_for_selector(selector, timeout=10000)
-                    elements = await page.query_selector_all(selector)
-                    logger.info(f"📊 Found {len(elements)} elements with selector '{selector}'")
-                    if len(elements) > 3:
-                        quotes_selector = selector
+                # Navigation simple (comme l'original)
+                max_retries = 3
+                for attempt in range(max_retries):
+                    try:
+                        await page.goto(topic_url, wait_until='networkidle', timeout=60000)
                         break
-                except Exception as e:
-                    logger.warning(f"Selector '{selector}' failed: {str(e)}")
-                    continue
+                    except Exception as e:
+                        logger.warning(f"Attempt {attempt + 1} failed: {str(e)}")
+                        if attempt == max_retries - 1:
+                            raise
+                        await asyncio.sleep(5)
 
-            if not quotes_selector:
-                await page.screenshot(path="debug_hybrid_failed.png")
-                logger.error("No quotes found - saving screenshot")
-                raise Exception("Could not find quotes on the page")
+                # Pause standard
+                await asyncio.sleep(5)
 
-            logger.info(f"✅ Using selector: {quotes_selector}")
+                # Vérifier les blocages
+                page_content = await page.content()
+                if "403" in page_content or "forbidden" in page_content.lower() or "blocked" in page_content.lower():
+                    raise Exception("Access blocked by website protection")
 
-            # Extraction améliorée (nouvelle partie) avec limite
-            page_quotes = await self._extract_quotes_enhanced(page, quotes_selector, max_quotes=max_quotes)
-            quotes.extend(page_quotes)
-            logger.info(f"📊 Found {len(page_quotes)} quotes")
+                # Trouver les sélecteurs (comme l'original)
+                selectors_to_try = ['.bqQt', '.grid-item', '.clearfix', '[class*="quote"]']
+                quotes_selector = None
+
+                for selector in selectors_to_try:
+                    try:
+                        logger.info(f"🔍 Trying selector: {selector}")
+                        await page.wait_for_selector(selector, timeout=10000)
+                        elements = await page.query_selector_all(selector)
+                        logger.info(f"📊 Found {len(elements)} elements with selector '{selector}'")
+                        if len(elements) > 3:
+                            quotes_selector = selector
+                            break
+                    except Exception as e:
+                        logger.warning(f"Selector '{selector}' failed: {str(e)}")
+                        continue
+
+                if not quotes_selector:
+                    await page.screenshot(path=f"debug_hybrid_failed_page{page_num}.png")
+                    logger.warning(f"No quotes found on page {page_num} - may have reached end of pagination")
+                    break  # Arrêter la pagination si pas de contenu
+
+                logger.info(f"✅ Using selector: {quotes_selector}")
+
+                # Calculer combien de citations on peut encore extraire
+                remaining_quotes = None
+                if max_quotes:
+                    remaining_quotes = max_quotes - len(quotes)
+                    if remaining_quotes <= 0:
+                        break
+
+                # Extraction améliorée avec limite dynamique
+                page_quotes = await self._extract_quotes_enhanced(
+                    page, 
+                    quotes_selector, 
+                    max_quotes=remaining_quotes
+                )
+                quotes.extend(page_quotes)
+                logger.info(f"📊 Page {page_num}: Found {len(page_quotes)} quotes (Total: {len(quotes)})")
+                
+                # Si on a moins de 10 citations sur cette page, probablement la dernière
+                if len(page_quotes) < 10:
+                    logger.info(f"📄 Page {page_num} has < 10 quotes, likely last page")
+                    break
 
         except Exception as e:
             logger.error(f"❌ Error scraping topic {topic}: {str(e)}")
@@ -264,7 +306,7 @@ class HybridBrainyQuoteScraper:
         finally:
             await context.close()
 
-        logger.info(f"🏁 Hybrid scraping completed. Total quotes: {len(quotes)}")
+        logger.info(f"🏁 Hybrid scraping completed. Total quotes: {len(quotes)} from {page_num} page(s)")
         return quotes
 
     async def download_images(self, quotes: List[Dict]) -> List[Dict]:
@@ -341,22 +383,57 @@ class HybridBrainyQuoteScraper:
                             else:
                                 quote_text = alt_text.strip()
 
-                # Étape 2: Méthodes alternatives d'extraction (améliorées)
+                # Étape 2: Méthodes alternatives d'extraction (améliorées et plus agressives)
                 if not quote_text or "share this quote" in quote_text.lower():
-                    # Essayer d'autres sélecteurs de texte
-                    text_selectors = ['.qtext', 'p', 'span']
+                    # Essayer plusieurs sélecteurs dans l'ordre de priorité
+                    text_selectors = [
+                        'a.oncl_q',           # Sélecteur principal BrainyQuote
+                        '.b-qt',              # Sélecteur alternatif
+                        'a[title]',           # Liens avec title
+                        '.qtext',             # Ancien sélecteur
+                        'p',                  # Paragraphes
+                        'span'                # Spans génériques
+                    ]
+                    
                     for text_selector in text_selectors:
                         text_elem = await quote_element.query_selector(text_selector)
                         if text_elem:
+                            # Essayer d'abord le title attribute
+                            title_attr = await text_elem.get_attribute('title')
+                            if title_attr and len(title_attr.strip()) > 10:
+                                quote_text = title_attr.strip()
+                                logger.debug(f"Found text in title attribute: {quote_text[:50]}...")
+                                break
+                            
+                            # Sinon le inner text
                             text_content = await text_elem.inner_text()
                             if text_content and len(text_content.strip()) > 10:
                                 lines = text_content.strip().split('\n')
                                 clean_lines = [line.strip() for line in lines if line.strip()]
                                 if clean_lines and "share this quote" not in clean_lines[0].lower():
                                     quote_text = clean_lines[0]
-                                    if len(clean_lines) > 1:
+                                    if len(clean_lines) > 1 and author_name == "Unknown":
                                         author_name = clean_lines[1]
+                                    logger.debug(f"Found text in {text_selector}: {quote_text[:50]}...")
                                     break
+                
+                # Étape 2b: Extraction auteur depuis d'autres sélecteurs si toujours Unknown
+                if author_name == "Unknown":
+                    author_selectors = [
+                        'a.bq_on_link_cl',    # Lien auteur BrainyQuote
+                        '.bq-aut a',          # Ancien sélecteur auteur
+                        'a[href*="/authors/"]', # Liens vers pages auteurs
+                        '.author-name',       # Class générique
+                    ]
+                    
+                    for author_selector in author_selectors:
+                        author_elem = await quote_element.query_selector(author_selector)
+                        if author_elem:
+                            author_text = await author_elem.inner_text()
+                            if author_text and len(author_text.strip()) > 0:
+                                author_name = author_text.strip()
+                                logger.debug(f"Found author in {author_selector}: {author_name}")
+                                break
 
                 # Étape 3: Extraction de l'auteur depuis l'URL (comme l'original)
                 if author_name == "Unknown" and quote_link and "/quotes/" in quote_link:
@@ -436,16 +513,20 @@ class HybridBrainyQuoteScraper:
         return author.title() if author else "Unknown"
 
     def _is_valid_quote_data(self, text: str, author: str) -> bool:
-        """Validation des données de citation"""
+        """
+        Validation des données de citation - Version assouplie pour extraire le maximum
+        Accepte les citations même sans auteur identifié (Unknown)
+        """
+        # Le texte doit exister et avoir une longueur minimale
         if not text or len(text) < 10:
             return False
 
+        # Rejeter les éléments UI non pertinents
         if "share this quote" in text.lower():
             return False
-
-        if not author or author in ['Unknown', '', 'Share this Quote']:
-            return False
-
+        
+        # Accepter même si auteur = Unknown (assouplissement pour extraire plus)
+        # Les citations sans auteur sont quand même valables
         return True
 
     async def _download_image_simple(self, image_url: str, identifier: str) -> Optional[Dict]:

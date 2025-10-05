@@ -107,7 +107,7 @@ manager = ConnectionManager()
 # Pydantic models
 class ScrapeRequest(BaseModel):
     topic: str
-    max_quotes: int = 10
+    max_quotes: Optional[int] = None  # None = extraire toutes les citations
     include_images: bool = True
     store_in_database: bool = True
 
@@ -149,7 +149,7 @@ async def start_scraping(request: ScrapeRequest, background_tasks: BackgroundTas
         scraping_state.update({
             "status": "starting",
             "current_topic": request.topic,
-            "progress": {"current": 0, "total": request.max_quotes},
+            "progress": {"current": 0, "total": request.max_quotes or 0},
             "stats": {"extracted": 0, "images": 0, "errors": 0, "elapsed": 0},
             "start_time": time.time()
         })
@@ -229,18 +229,28 @@ async def broadcast_update(update_type: str, data: Dict):
     }
     await manager.broadcast(json.dumps(message))
 
-async def api_scraping_workflow(topic: str, max_quotes: int, include_images: bool, store_in_database: bool):
-    """API version of the scraping workflow with WebSocket updates"""
+async def api_scraping_workflow(topic: str, max_quotes: Optional[int], include_images: bool, store_in_database: bool):
+    """
+    API version of the scraping workflow with WebSocket updates
+    
+    Args:
+        topic: Le sujet des citations
+        max_quotes: Nombre max de citations (None = toutes)
+        include_images: Télécharger les images
+        store_in_database: Stocker dans Supabase
+    """
     try:
         global stop_requested
         stop_requested = False
         scraping_state["status"] = "running"
-        logger.info(f"🚀 API: Starting scraping workflow for topic: {topic}")
+        
+        mode_msg = "TOUTES les citations" if max_quotes is None else f"{max_quotes} citations max"
+        logger.info(f"🚀 API: Starting scraping workflow for topic: {topic} ({mode_msg})")
 
         # Broadcast start
         await broadcast_update("status", {
             "status": "running",
-            "message": f"Démarrage du scraping pour '{topic}'"
+            "message": f"Démarrage du scraping pour '{topic}' ({mode_msg})"
         })
 
         # Initialize storage component
@@ -263,9 +273,9 @@ async def api_scraping_workflow(topic: str, max_quotes: int, include_images: boo
         async with HybridBrainyQuoteScraper(stop_check_callback=should_stop) as scraper:
             # Phase 1: Scrape quotes
             await broadcast_update("progress", {
-                "message": "Phase 1: Extraction des citations...",
+                "message": f"Phase 1: Extraction des citations...{' (toutes)' if max_quotes is None else ''}",
                 "current": 0,
-                "total": max_quotes
+                "total": max_quotes or 0
             })
 
             quotes = await scraper.scrape_topic(topic, max_quotes=max_quotes)
@@ -273,7 +283,7 @@ async def api_scraping_workflow(topic: str, max_quotes: int, include_images: boo
             logger.info(f"✅ Scraped {len(quotes)} quotes successfully")
             scraping_state["stats"]["extracted"] = len(quotes)
             scraping_state["progress"]["current"] = len(quotes)
-            scraping_state["progress"]["total"] = max_quotes  # S'assurer que le total est correct
+            scraping_state["progress"]["total"] = max_quotes or len(quotes)  # Si None, utiliser le nombre extrait
 
             # Broadcast each quote as it's extracted
             for i, quote in enumerate(quotes):

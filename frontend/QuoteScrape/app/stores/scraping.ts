@@ -17,7 +17,7 @@ export const useScrapingStore = defineStore('scraping', () => {
 
   const start = async (params: {
     topic: string
-    maxQuotes?: number
+    maxQuotes?: number | null
     includeImages?: boolean
     storeInDatabase?: boolean
   }) => {
@@ -32,7 +32,7 @@ export const useScrapingStore = defineStore('scraping', () => {
         baseURL: config.public.apiBaseUrl as string | undefined,
         body: {
           topic: params.topic,
-          maxQuotes: params.maxQuotes || 10,
+          maxQuotes: params.maxQuotes ?? 10,  // null passé tel quel, undefined devient 10
           includeImages: params.includeImages ?? true,
           storeInDatabase: params.storeInDatabase ?? true
         }
