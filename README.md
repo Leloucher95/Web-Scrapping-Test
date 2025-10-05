@@ -227,7 +227,7 @@ NUXT_PUBLIC_WS_URL=ws://localhost:8000
 ### Erreur Supabase 401
 ```bash
 # Vérifier que les clés Supabase sont correctes dans backend/.env
-# Tester la connexion: 
+# Tester la connexion:
 curl -H "apikey: votre_clé" https://votre_projet.supabase.co/rest/v1/
 ```
 
@@ -263,26 +263,9 @@ curl -H "apikey: votre_clé" https://votre_projet.supabase.co/rest/v1/
 - [Frontend README](frontend/QuoteScrape/README.md) - Détails frontend
 - [Audit Backend](backend/AUDIT_BACKEND_COMPLET.md) - Validation complète
 
-## 🚀 Déploiement
-
-### Backend (Railway, Render, Fly.io)
-
-```bash
-# Fichier Procfile
-web: cd src && uvicorn main:app --host 0.0.0.0 --port $PORT
-```
-
-### Frontend (Vercel, Netlify)
-
-```bash
-# Variables d'environnement
-NUXT_PUBLIC_API_BASE_URL=https://votre-backend.com
-NUXT_PUBLIC_WS_URL=wss://votre-backend.com
-```
-
 ## 👤 Auteur
 
-Développé pour le projet Web Scraping avec Playwright et Supabase.
+AHOYO Juste ; Développé pour le projet Web Scraping avec Playwright et Supabase.
 
 ## 📄 Licence
 
@@ -290,5 +273,4 @@ ISC
 
 ---
 
-**Dernière mise à jour**: 5 octobre 2025
-**Version nettoyée et optimisée** ✨
+
