@@ -116,7 +116,7 @@ logging.basicConfig(
 ## 🛠️ **COMPOSANTS TECHNIQUES VALIDÉS**
 
 ### Scripts opérationnels
-- ✅ `main_supabase.py` - Workflow complet testé
+- ✅ `src/main.py` - Application FastAPI complète (renommé depuis main_supabase.py)
 - ✅ `brainyquote_hybrid.py` - Scraper validé
 - ✅ `supabase_storage.py` - Storage opérationnel
 - ✅ `enhanced_supabase_setup.sql` - Schema déployé

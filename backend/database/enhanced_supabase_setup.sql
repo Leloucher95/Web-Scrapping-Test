@@ -178,4 +178,4 @@ CREATE INDEX IF NOT EXISTS idx_quotes_random ON quotes(id);
 -- 2. Create a storage bucket named 'quote-images' with public access
 -- 3. Set up your .env file with SUPABASE_URL and SUPABASE_ANON_KEY
 -- 4. Install required packages: pip install supabase python-dotenv
--- 5. Test the connection using main_supabase.py
+-- 5. Test the connection using: cd src && uvicorn main:app --reload

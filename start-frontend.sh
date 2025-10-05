@@ -63,7 +63,7 @@ if curl -s -f "http://localhost:8000/health" > /dev/null 2>&1; then
     echo "✅ Backend accessible sur http://localhost:8000"
 else
     echo "⚠️  Backend non accessible. Le frontend fonctionnera en mode simulation."
-    echo "   Pour démarrer le backend: cd backend && python main_supabase.py"
+    echo "   Pour démarrer le backend: cd backend/src && uvicorn main:app --reload"
 fi
 
 echo ""

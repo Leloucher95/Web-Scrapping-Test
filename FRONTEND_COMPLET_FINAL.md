@@ -103,9 +103,9 @@ npm run dev
 - ✅ **Variables d'environnement** configurées
 
 ### Prochaine Étape
-1. **Démarrer le backend** : `cd backend && python main_supabase.py`
+1. **Démarrer le backend** : `cd backend/src && uvicorn main:app --reload`
 2. **Tester l'intégration** complète
-3. **Ajouter WebSocket** côté backend pour temps réel
+3. **WebSocket** déjà implémenté côté backend! ✅
 
 ## 📈 Améliorations Clés Réalisées
 
